@@ -1,53 +1,29 @@
 class Filter
 
-  def initialize (name, emails, terms = nil)
-  	@name = name.strip
+  def initialize (emails)
   	@emails = emails.strip.split(',')
   	@emails.each {|email| email.strip!}
-  	if terms
-  	  @terms = terms.strip.split(',')
-  	  @terms.each do |term| 
-  	  	term.strip!
-  	  	term.gsub!('"','&quot;')
-  	  end
-  	end
   end
 
   def build_it
-  	filter = "
-  	<entry>
-		<category term='filter'></category>
-		<title>Mail Filter</title>
-		<id></id>
-		<updated></updated>
-		<content></content>
-		<apps:property name='to' value='#{@emails.join(' OR ')}'/>
-		<apps:property name='label' value='#{@name}'/>
-	</entry>
-	<entry>
-		<category term='filter'></category>
-		<title>Mail Filter</title>
-		<id></id>
-		<updated></updated>
-		<content></content>
-		<apps:property name='from' value='#{@emails.join(' OR ')}'/>
-		<apps:property name='label' value='#{@name}'/>
-	</entry>"
-	if @terms
-	  filter += "
-  	<entry>
-		<category term='filter'></category>
-		<title>Mail Filter</title>
-		<id></id>
-		<updated></updated>
-		<content></content>
-		<apps:property name='hasTheWord' value='#{@terms.join(', ')}'/>
-		<apps:property name='label' value='#{@name}'/>
-	</entry>"
-	end
-	return filter
-  end
+		filter = ""
+		@emails.each_slice(3).to_a.each do |emails|
+			filter += "
+				<entry>
+					<category term='filter'></category>
+					<title>Mail Filter</title>
+					<id></id>
+					<updated></updated>
+					<content></content>
+					<apps:property name='from' value='#{emails.join(' OR ')}'/>
+					<apps:property name='shouldTrash' value='true'/>
+					<apps:property name='sizeOperator' value='s_sl'/>
+					<apps:property name='sizeUnit' value='s_smb'/>
+				</entry>"
+		end
 
+		filter
+	end
 end
 
 class GmailFilter
@@ -70,28 +46,14 @@ class GmailFilter
   end
 
   def build_filters(text_string = nil)
-  	#call directly with a text string
-  	if text_string
-  	  @text_string = text_string
-  	end
-  	text_array = @text_string.split(/\n/)
-  	text_array.each do |line|
-	  if (line[0,2] == '//' || line == '' || line == nil)
-	  else
-	    label, searches = line.split(':')
-	    if searches
-	      emails, terms = searches.split('|')
-	      filter = Filter.new(label, emails, terms)
-	      @output_text += filter.build_it
-	    end
-	  end
-	end
+		filter = Filter.new(text_string)
+		@output_text += filter.build_it
 	@output_text += "
 
 </feed>"
   end
 
-  def export_filters_to_file 	
+  def export_filters_to_file
 	File.open('mailfilters.xml','w') do |file|
 	  file.puts @output_text
 	end

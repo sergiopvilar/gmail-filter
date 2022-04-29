@@ -1,7 +1,9 @@
 #testapp.rb
 require 'rubygems'
 require 'sinatra'
-require 'gmail'
+require 'net/imap'
+require 'dotenv/load'
+require './gmail.rb'
 
 helpers do
   def escape_html(text)
@@ -10,17 +12,17 @@ helpers do
 end
 
 get '/' do
-	@name = "Emily"
-	@friends = ["Victoria", "Jen", "Steve", "Vikram", "JJ"]
-	erb :index
-end
+	imap = Net::IMAP.new("imap.gmail.com", 993, true, nil, false)
+	imap.login(ENV['GMAIL_ACCOUNT'], ENV['GMAIL_PASSWORD'])
+	imap.examine(ENV['GMAIL_FOLDER'])
+	emails = []
 
-get '/friends' do
-	@photoname = "IMG_0883.JPG"
-	erb :friends
-end
+	imap.search(["ALL"]).each do |message_id|
+		env = imap.fetch(message_id, "ENVELOPE")[0].attr["ENVELOPE"]
+		emails.push("#{env.from[0].mailbox}@#{env.from[0].host}")
+	end
 
-get '/gmailapp' do
+	@emails = emails.uniq.join(', ')
 	erb :gmailapp
 end
 
